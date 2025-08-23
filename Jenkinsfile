@@ -4,7 +4,7 @@ pipeline {
     environment {
         EC2_INSTANCE_IP = '13.203.132.105'
         EC2_INSTANCE_USER = 'ec2-user'
-        JAR_NAME = 'gfj-be-0.0.32-SNAPSHOT.jar' // ✅ Corrected JAR name
+        JAR_NAME = 'gfj-be-0.0.32-SNAPSHOT.jar'
         DEPLOY_PATH = '/home/ec2-user'
     }
 
@@ -40,15 +40,14 @@ pipeline {
                             scp -o StrictHostKeyChecking=no ${START_SCRIPT_PATH} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/start-gfj.sh
 
                             echo "🔄 Connecting to EC2 instance and restarting application..."
-                            ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} <<EOF
-                                echo "🛑 Stopping any existing application process..."
-                                pkill -f "${JAR_NAME}" || true
 
-                                chmod +x ${DEPLOY_PATH}/start-gfj.sh
-
-                                echo "▶️ Starting the new application using the start script..."
+                            ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} '
+                                echo "🛑 Stopping any existing application process..." &&
+                                pkill -f "${JAR_NAME}" || true &&
+                                chmod +x ${DEPLOY_PATH}/start-gfj.sh &&
+                                echo "▶️ Starting the new application using the start script..." &&
                                 nohup bash ${DEPLOY_PATH}/start-gfj.sh &
-                            EOF
+                            '
                         """
                     }
                 }
