@@ -4,7 +4,6 @@ pipeline {
     environment {
         EC2_INSTANCE_IP = '13.203.132.105'
         EC2_INSTANCE_USER = 'ec2-user'
-        JAR_NAME = 'gfj-be-0.0.32-SNAPSHOT.jar'
         DEPLOY_PATH = '/home/ec2-user'
     }
 
@@ -25,6 +24,12 @@ pipeline {
 
                 sh 'echo "📦 Listing JARs in target directory..."'
                 sh 'ls -lh target/*.jar || echo "❌ No JAR found!"'
+
+                script {
+                    def jarFile = sh(script: "ls target/*.jar | grep SNAPSHOT | head -n 1", returnStdout: true).trim()
+                    env.JAR_NAME = jarFile.tokenize('/').last()
+                    echo "📌 Detected JAR: ${env.JAR_NAME}"
+                }
             }
         }
 
