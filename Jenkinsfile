@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        EC2_INSTANCE_IP = '13.203.132.105'
+        EC2_INSTANCE_IP = '13.202.224.13'
         EC2_INSTANCE_USER = 'ec2-user'
         DEPLOY_PATH = '/home/ec2-user'
     }
