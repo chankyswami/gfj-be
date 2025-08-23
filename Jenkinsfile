@@ -17,9 +17,14 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'mvn -v' // Confirm Maven is available
-                sh 'mvn clean install -DskipTests=true'
-                sh 'ls -l target' // Debug: confirm JAR is built
+                sh 'echo "🔧 Checking Maven version..."'
+                sh 'mvn -v'
+
+                sh 'echo "🛠️ Building the project..."'
+                sh 'mvn clean install -DskipTests=true || exit 1'
+
+                sh 'echo "📦 Listing JARs in target directory..."'
+                sh 'ls -lh target/*.jar || echo "❌ No JAR found!"'
             }
         }
 
@@ -28,20 +33,20 @@ pipeline {
                 configFileProvider([configFile(fileId: 'start-gfj-script', variable: 'START_SCRIPT_PATH')]) {
                     sshagent(credentials: ['ec2-creds']) {
                         sh """
-                            echo "Copying application files to EC2 instance..."
+                            echo "🚀 Copying application files to EC2 instance..."
 
                             scp -o StrictHostKeyChecking=no target/${JAR_NAME} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/
 
                             scp -o StrictHostKeyChecking=no ${START_SCRIPT_PATH} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/start-gfj.sh
 
-                            echo "Connecting to EC2 instance and restarting application..."
+                            echo "🔄 Connecting to EC2 instance and restarting application..."
                             ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} <<EOF
-                                echo "Stopping any existing application process..."
+                                echo "🛑 Stopping any existing application process..."
                                 pkill -f "${JAR_NAME}" || true
 
                                 chmod +x ${DEPLOY_PATH}/start-gfj.sh
 
-                                echo "Starting the new application using the start script..."
+                                echo "▶️ Starting the new application using the start script..."
                                 nohup bash ${DEPLOY_PATH}/start-gfj.sh &
                             EOF
                         """
