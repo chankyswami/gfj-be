@@ -6,6 +6,8 @@ pipeline {
         EC2_INSTANCE_USER = 'ec2-user'
         JAR_NAME = 'gems-of-jaipur.jar'
         DEPLOY_PATH = '/home/ec2-user'
+        MAVEN_HOME = '/usr/share/maven'
+        PATH = "${MAVEN_HOME}/bin:${PATH}"
     }
 
     stages {
@@ -16,10 +18,8 @@ pipeline {
         }
 
         stage('Build') {
-            tools {
-                maven 'maven' // This matches the name you configured in Jenkins
-            }
             steps {
+                sh 'mvn -v' // Optional: confirms Maven is available
                 sh 'mvn clean install -DskipTests=true'
             }
         }
