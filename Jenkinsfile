@@ -48,10 +48,10 @@ pipeline {
 
                             ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} '
                                 echo "🛑 Stopping any existing application process..." &&
-                                pkill -f "${JAR_NAME}" || true &&
-                                chmod +x ${DEPLOY_PATH}/start-gfj.sh &&
-                                echo "▶️ Starting the new application using the start script..." &&
-                                nohup bash ${DEPLOY_PATH}/start-gfj.sh &
+                                sudo pkill -f "${JAR_NAME}" || true &&
+                                sudo chmod +x ${DEPLOY_PATH}/start-gfj.sh &&
+                                echo "▶️ Starting the new application using the start script as root..." &&
+                                sudo nohup bash ${DEPLOY_PATH}/start-gfj.sh > /var/log/gfj.log 2>&1 &
                             '
                         """
                     }
