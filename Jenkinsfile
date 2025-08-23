@@ -17,7 +17,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'mvn -v' // Optional: confirms Maven is available
+                sh 'mvn -v' // Confirm Maven is available
                 sh 'mvn clean install -DskipTests=true'
             }
         }
@@ -29,14 +29,13 @@ pipeline {
                         sh """
                             echo "Copying application files to EC2 instance..."
 
-                            scp target/${JAR_NAME} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/
+                            scp -o StrictHostKeyChecking=no target/${JAR_NAME} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/
 
-                            scp ${START_SCRIPT_PATH} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/start-gfj.sh
+                            scp -o StrictHostKeyChecking=no ${START_SCRIPT_PATH} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/start-gfj.sh
 
                             echo "Connecting to EC2 instance and restarting application..."
                             ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} <<EOF
                                 echo "Stopping any existing application process..."
-
                                 pkill -f "${JAR_NAME}" || true
 
                                 chmod +x ${DEPLOY_PATH}/start-gfj.sh
