@@ -16,6 +16,9 @@ pipeline {
         }
 
         stage('Build') {
+            tools {
+                maven 'maven' // This matches the name you configured in Jenkins
+            }
             steps {
                 sh 'mvn clean install -DskipTests=true'
             }
@@ -38,11 +41,9 @@ pipeline {
 
                                 pkill -f "${JAR_NAME}" || true
 
-                                # Give the script execute permissions.
                                 chmod +x ${DEPLOY_PATH}/start-gfj.sh
 
                                 echo "Starting the new application using the start script..."
-                                # Use nohup to run the script in the background.
                                 nohup bash ${DEPLOY_PATH}/start-gfj.sh &
                             EOF
                         """
