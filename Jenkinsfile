@@ -4,7 +4,7 @@ pipeline {
     environment {
         EC2_INSTANCE_IP = '13.203.132.105'
         EC2_INSTANCE_USER = 'ec2-user'
-        JAR_NAME = 'gfj-be-1.0-SNAPSHOT.jar'
+        JAR_NAME = 'gfj-be-0.0.32-SNAPSHOT.jar' // ✅ Corrected JAR name
         DEPLOY_PATH = '/home/ec2-user'
     }
 
