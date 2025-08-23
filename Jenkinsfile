@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'maven:3.8.7-openjdk-17'
-            args '-v /root/.m2:/root/.m2' // Optional: cache Maven dependencies
-        }
-    }
+    agent any
 
     environment {
         EC2_INSTANCE_IP = '13.203.132.105'
@@ -22,7 +17,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'mvn -v' // Confirm Maven is available
+                sh 'mvn -v'
                 sh 'mvn clean install -DskipTests=true'
             }
         }
