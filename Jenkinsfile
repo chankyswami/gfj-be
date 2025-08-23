@@ -1,13 +1,16 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'maven:3.8.7-openjdk-17'
+            args '-v /root/.m2:/root/.m2' // Optional: cache Maven dependencies
+        }
+    }
 
     environment {
         EC2_INSTANCE_IP = '13.203.132.105'
         EC2_INSTANCE_USER = 'ec2-user'
         JAR_NAME = 'gems-of-jaipur.jar'
         DEPLOY_PATH = '/home/ec2-user'
-        MAVEN_HOME = '/usr/share/maven'
-        PATH = "${MAVEN_HOME}/bin:${PATH}"
     }
 
     stages {
@@ -19,7 +22,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'mvn -v' // Optional: confirms Maven is available
+                sh 'mvn -v' // Confirm Maven is available
                 sh 'mvn clean install -DskipTests=true'
             }
         }
