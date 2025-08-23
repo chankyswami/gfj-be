@@ -4,7 +4,7 @@ pipeline {
     environment {
         EC2_INSTANCE_IP = '13.203.132.105'
         EC2_INSTANCE_USER = 'ec2-user'
-        JAR_NAME = 'gems-of-jaipur.jar'
+        JAR_NAME = 'gfj-be-1.0-SNAPSHOT.jar'
         DEPLOY_PATH = '/home/ec2-user'
     }
 
@@ -19,6 +19,7 @@ pipeline {
             steps {
                 sh 'mvn -v' // Confirm Maven is available
                 sh 'mvn clean install -DskipTests=true'
+                sh 'ls -l target' // Debug: confirm JAR is built
             }
         }
 
