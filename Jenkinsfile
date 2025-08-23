@@ -17,14 +17,14 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'mvn -v'
+                sh 'mvn -v' // Optional: confirms Maven is available
                 sh 'mvn clean install -DskipTests=true'
             }
         }
 
         stage('Deploy') {
             steps {
-                withCredentials([file(credentialsId: 'start-gfj-script', variable: 'START_SCRIPT_PATH')]) {
+                configFileProvider([configFile(fileId: 'start-gfj-script', variable: 'START_SCRIPT_PATH')]) {
                     sshagent(credentials: ['ec2-creds']) {
                         sh """
                             echo "Copying application files to EC2 instance..."
@@ -53,10 +53,10 @@ pipeline {
 
     post {
         success {
-            echo 'Deployment successful!'
+            echo '✅ Deployment successful!'
         }
         failure {
-            echo 'Deployment failed. Check the logs for more details.'
+            echo '❌ Deployment failed. Check the logs for more details.'
         }
     }
 }
