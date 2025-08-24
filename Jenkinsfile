@@ -76,7 +76,7 @@ pipeline {
                 sh 'mvn -v'
 
                 sh 'echo "🛠️ Building the project..."'
-                sh 'mvn clean install -DskipTests=true || exit 1'
+                sh 'mvn clean package -DskipTests=true || exit 1'
 
                 sh 'echo "📦 Listing JARs in target directory..."'
                 sh 'ls -lh target/*.jar || echo "❌ No JAR found!"'
