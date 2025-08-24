@@ -2,7 +2,7 @@ pipeline {
     agent {
         docker {
             image 'maven-terraform-agent:latest'
-            args "-v /var/run/docker.sock:/var/run/docker.sock -v /home/jenkins/agent:/workspace"
+            args "-v /var/run/docker.sock:/var/run/docker.sock -v ${env.WORKSPACE}:/workspace"
         }
     }
 
@@ -30,13 +30,14 @@ pipeline {
             steps {
                 echo "🌍 Initializing and planning Terraform..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
-                    sh '''
-                        cd /workspace
-                        echo "📁 Contents of /workspace:"
-                        ls -la
-                        terraform init -input=false
-                        terraform plan -out=${TF_PLAN_FILE}
-                    '''
+                    dir('/workspace') {
+                        sh '''
+                            echo "📁 Contents of /workspace:"
+                            ls -la
+                            terraform init -input=false
+                            terraform plan -out=${TF_PLAN_FILE}
+                        '''
+                    }
                 }
             }
         }
@@ -48,10 +49,11 @@ pipeline {
             steps {
                 echo "🚀 Applying Terraform changes..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
-                    sh '''
-                        cd /workspace
-                        terraform apply -auto-approve ${TF_PLAN_FILE}
-                    '''
+                    dir('/workspace') {
+                        sh '''
+                            terraform apply -auto-approve ${TF_PLAN_FILE}
+                        '''
+                    }
                 }
             }
         }
