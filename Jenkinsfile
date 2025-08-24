@@ -22,18 +22,16 @@ pipeline {
         stage('Terraform Init & Plan') {
             steps {
                 echo "🌍 Initializing and planning Terraform..."
-                // Use `withCredentials` to securely inject credentials as environment variables
                 withCredentials([
-                    aws(credentialsId: 'GEMS-AWS',
-                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY',
-                        sessionTokenVariable: 'AWS_SESSION_TOKEN')
+                    // Use withCredentials to define secure variables
+                    string(credentialsId: 'GEMS-AWS-ACCESS-KEY', variable: 'AWS_ACCESS_KEY_ID'),
+                    string(credentialsId: 'GEMS-AWS-SECRET-KEY', variable: 'AWS_SECRET_ACCESS_KEY')
                 ]) {
                     sh '''
                         echo "📁 Contents of current directory:"
                         ls -la
                         
-                        # Navigate to the correct directory for Terraform
+                        # Navigate to the directory containing Terraform files
                         cd terraform-gem/environments/dev
                         echo "📁 Contents of terraform-gem/environments/dev directory:"
                         ls -la
@@ -52,10 +50,9 @@ pipeline {
             steps {
                 echo "🚀 Applying Terraform changes..."
                 withCredentials([
-                    aws(credentialsId: 'GEMS-AWS',
-                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY',
-                        sessionTokenVariable: 'AWS_SESSION_TOKEN')
+                    // Use withCredentials to define secure variables
+                    string(credentialsId: 'GEMS-AWS-ACCESS-KEY', variable: 'AWS_ACCESS_KEY_ID'),
+                    string(credentialsId: 'GEMS-AWS-SECRET-KEY', variable: 'AWS_SECRET_ACCESS_KEY')
                 ]) {
                     sh '''
                         # Navigate to the directory containing Terraform files
