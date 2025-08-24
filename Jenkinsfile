@@ -16,22 +16,35 @@ pipeline {
 
     parameters {
         booleanParam(name: 'APPLY_TF', defaultValue: false, description: 'Apply Terraform changes?')
+        booleanParam(name: 'DESTROY_TF', defaultValue: false, description: 'Destroy infrastructure instead of running pipeline?')
     }
 
     stages {
+        stage('Terraform Destroy') {
+            when {
+                expression { return params.DESTROY_TF == true }
+            }
+            steps {
+                echo "💣 Destroying infrastructure..."
+                withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
+                    sh '''
+                        cd terraform-gem/environments/dev
+                        terraform init -input=false
+                        terraform destroy -auto-approve
+                    '''
+                }
+            }
+        }
+
         stage('Terraform Init & Plan') {
+            when {
+                expression { return params.DESTROY_TF == false }
+            }
             steps {
                 echo "🌍 Initializing and planning Terraform..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
                     sh '''
-                        echo "📁 Contents of current directory:"
-                        ls -la
-                        
-                        # Navigate to the directory containing Terraform files
                         cd terraform-gem/environments/dev
-                        echo "📁 Contents of terraform-gem directory:"
-                        ls -la
-
                         terraform init -input=false
                         terraform plan -out=${TF_PLAN_FILE}
                     '''
@@ -41,15 +54,13 @@ pipeline {
 
         stage('Terraform Apply') {
             when {
-                expression { return params.APPLY_TF == true }
+                expression { return params.APPLY_TF == true && params.DESTROY_TF == false }
             }
             steps {
                 echo "🚀 Applying Terraform changes..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
                     sh '''
-                        # Navigate to the directory containing Terraform files
                         cd terraform-gem/environments/dev
-                        
                         terraform apply -auto-approve ${TF_PLAN_FILE}
                     '''
                 }
@@ -57,6 +68,9 @@ pipeline {
         }
 
         stage('Build') {
+            when {
+                expression { return params.DESTROY_TF == false }
+            }
             steps {
                 sh 'echo "🔧 Checking Maven version..."'
                 sh 'mvn -v'
@@ -76,6 +90,9 @@ pipeline {
         }
 
         stage('Deploy') {
+            when {
+                expression { return params.DESTROY_TF == false }
+            }
             steps {
                 echo "🚚 Deploying to EC2 instance..."
                 configFileProvider([configFile(fileId: 'start-gfj-script', variable: 'START_SCRIPT_PATH')]) {
@@ -102,10 +119,10 @@ pipeline {
 
     post {
         success {
-            echo '✅ Deployment successful!'
+            echo '✅ Job finished successfully!'
         }
         failure {
-            echo '❌ Deployment failed. Check the logs for more details.'
+            echo '❌ Job failed. Check the logs for more details.'
         }
     }
 }
