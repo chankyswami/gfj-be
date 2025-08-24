@@ -46,7 +46,7 @@ pipeline {
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
                     sh '''
                         # Navigate to the directory containing Terraform files
-                        cd terraform-gem
+                        cd terraform-gem/environments/dev
                         terraform apply -auto-approve ${TF_PLAN_FILE}
                     '''
                 }
