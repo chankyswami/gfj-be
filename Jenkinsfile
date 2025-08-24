@@ -2,8 +2,9 @@ pipeline {
     agent {
         docker {
             image 'maven-terraform-agent:latest'
-            // MODIFIED: Added --user $(id -u) to match the host user's UID.
-            args "-v /var/run/docker.sock:/var/run/docker.sock -v ${env.WORKSPACE}:/workspace --user root"
+            // MODIFIED: Use a specific non-root user and set the working directory directly
+            args "-u 1000 -v /var/run/docker.sock:/var/run/docker.sock -v ${env.WORKSPACE}:/home/jenkins/workspace"
+            workingDirectory '/home/jenkins/workspace'
         }
     }
 
@@ -31,14 +32,13 @@ pipeline {
             steps {
                 echo "🌍 Initializing and planning Terraform..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
-                    dir('/workspace') {
-                        sh '''
-                            echo "📁 Contents of /workspace:"
-                            ls -la
-                            terraform init -input=false
-                            terraform plan -out=${TF_PLAN_FILE}
-                        '''
-                    }
+                    // No need for 'dir' block here anymore, as we set the working directory via the agent
+                    sh '''
+                        echo "📁 Contents of current directory:"
+                        ls -la
+                        terraform init -input=false
+                        terraform plan -out=${TF_PLAN_FILE}
+                    '''
                 }
             }
         }
@@ -50,11 +50,10 @@ pipeline {
             steps {
                 echo "🚀 Applying Terraform changes..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
-                    dir('/workspace') {
-                        sh '''
-                            terraform apply -auto-approve ${TF_PLAN_FILE}
-                        '''
-                    }
+                    // No need for 'dir' block here
+                    sh '''
+                        terraform apply -auto-approve ${TF_PLAN_FILE}
+                    '''
                 }
             }
         }
