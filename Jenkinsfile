@@ -27,7 +27,7 @@ pipeline {
                         echo "📁 Contents of current directory:"
                         ls -la
                         # Navigate to the directory containing Terraform files
-                        cd terraform-gem
+                        cd terraform-gem/environments/dev
                         echo "📁 Contents of terraform-gem directory:"
                         ls -la
                         terraform init -input=false
