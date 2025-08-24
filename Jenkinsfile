@@ -117,7 +117,7 @@ pipeline {
                                 echo "🛑 Stopping existing app..." &&
                                 sudo pkill -f "${JAR_NAME}" || true &&
                                 echo "▶️ Starting new app..." &&
-                                bash ${DEPLOY_PATH}/start-gfj.sh
+                                nohup bash ${DEPLOY_PATH}/start-gfj.sh > /dev/null 2>&1 &
                             '
                         """
                     }
