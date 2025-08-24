@@ -27,9 +27,15 @@ pipeline {
                         echo "📁 Contents of current directory:"
                         ls -la
                         # Navigate to the directory containing Terraform files
-                        cd terraform-gem/environments/dev
+                        cd terraform-gem
                         echo "📁 Contents of terraform-gem directory:"
                         ls -la
+
+                        # Expose AWS credentials as environment variables for Terraform
+                        export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+                        export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+                        export AWS_SESSION_TOKEN="${AWS_SESSION_TOKEN}"
+
                         terraform init -input=false
                         terraform plan -out=${TF_PLAN_FILE}
                     '''
@@ -46,7 +52,13 @@ pipeline {
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
                     sh '''
                         # Navigate to the directory containing Terraform files
-                        cd terraform-gem/environments/dev
+                        cd terraform-gem
+                        
+                        # Expose AWS credentials as environment variables for Terraform
+                        export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+                        export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+                        export AWS_SESSION_TOKEN="${AWS_SESSION_TOKEN}"
+
                         terraform apply -auto-approve ${TF_PLAN_FILE}
                     '''
                 }
