@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.iavtar</groupId>
 	<artifactId>gfj-be</artifactId>
-	<version>0.0.32-SNAPSHOT</version>
+	<version>0.0.36-SNAPSHOT</version>
 	<name>gfj-be</name>
 	<description>Gems From Jaipur Backend</description>
 	<url/>

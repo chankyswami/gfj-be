@@ -19,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.*;
 import java.util.stream.Collectors;
+
 import com.iavtar.gfj_be.model.response.PagedUserResponse;
 
 @Slf4j
@@ -60,11 +61,18 @@ public class ShippingServiceImpl implements ShippingService {
             List<Quotation> quotations = quotationRepository.findAll();
             List<Quotation> shippableQuotations = quotations.stream()
                     .filter(quotation -> Objects.nonNull(quotation.getShippingId()))
-                    .collect(Collectors.toList());
+                    .toList();
             Map<String, List<Quotation>> grouped = shippableQuotations.stream()
                     .collect(Collectors.groupingBy(Quotation::getShippingId));
-            Map<String, String> shippingStatusById = shippingRepository.findAll().stream()
+            List<ShippingTracker> shippingTrackers = shippingRepository.findAll();
+            Map<String, String> shippingStatusById = shippingTrackers.stream()
                     .collect(Collectors.toMap(ShippingTracker::getShippingId, ShippingTracker::getStatus, (a, b) -> a));
+            Map<String, String> shippingTrackingIdById = shippingTrackers.stream()
+                    .collect(Collectors.toMap(
+                            ShippingTracker::getShippingId,
+                            st -> st.getTrackingId() != null ? st.getTrackingId() : "",
+                            (a, b) -> a
+                    ));
             List<Map<String, Object>> shippingGroups = grouped.entrySet().stream()
                     .map(entry -> {
                         Map<String, Object> item = new HashMap<>();
@@ -72,6 +80,7 @@ public class ShippingServiceImpl implements ShippingService {
                         item.put("quotations", entry.getValue());
                         item.put("count", entry.getValue().size());
                         item.put("status", shippingStatusById.get(entry.getKey()));
+                        item.put("trackingId", shippingTrackingIdById.get(entry.getKey())); // can be null
                         return item;
                     })
                     .collect(Collectors.toList());
@@ -119,6 +128,11 @@ public class ShippingServiceImpl implements ShippingService {
             shippingTracker.setTrackingId(trackingId);
             shippingTracker.setStatus("shipped");
             shippingRepository.save(shippingTracker);
+            List<Quotation> quotations = quotationRepository.findAllByShippingId(shippingId);
+            quotations.forEach(quotation -> {
+                quotation.setQuotationStatus("shipped");
+                quotationRepository.save(quotation);
+            });
             log.info("Successfully set tracking ID {} on shipping tracker: {}", trackingId, shippingId);
             ServiceResponse response = ServiceResponse.builder()
                     .message("Tracking ID added successfully")
@@ -137,10 +151,15 @@ public class ShippingServiceImpl implements ShippingService {
     public ResponseEntity<?> updateTrackingStatus(UpdateShippingTrackingRequest request) {
         try {
             Optional<ShippingTracker> shippingTracker = shippingRepository.findByShippingId(request.getShippingId());
-            if(shippingTracker.isPresent()) {
+            if (shippingTracker.isPresent()) {
                 ShippingTracker st = shippingTracker.get();
                 st.setStatus(request.getStatus());
                 shippingRepository.save(st);
+                List<Quotation> quotations = quotationRepository.findAllByShippingId(request.getShippingId());
+                quotations.forEach(quotation -> {
+                    quotation.setQuotationStatus(request.getStatus());
+                    quotationRepository.save(quotation);
+                });
                 return new ResponseEntity<>(ServiceResponse.builder().message("Shipping Status Updated!").build(), HttpStatus.OK);
             }
             return new ResponseEntity<>(ServiceResponse.builder().message("Shipping Status Not Updated!").build(), HttpStatus.BAD_REQUEST);
