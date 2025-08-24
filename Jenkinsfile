@@ -98,10 +98,15 @@ pipeline {
                 configFileProvider([configFile(fileId: 'start-gfj-script', variable: 'START_SCRIPT_PATH')]) {
                     sshagent(credentials: ['ec2-creds']) {
                         sh """
-                            echo "📤 Copying JAR and start script to EC2..."
+                            echo "📤 Copying JAR to EC2..."
                             scp -o StrictHostKeyChecking=no target/${JAR_NAME} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/
-                            scp -o StrictHostKeyChecking=no ${START_SCRIPT_PATH} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/start-gfj.sh
-                            
+
+                            echo "✏️ Preparing start-gfj.sh with correct JAR name..."
+                            sed "s|gfj-be-0.0.30-SNAPSHOT.jar|${JAR_NAME}|g" ${START_SCRIPT_PATH} > start-gfj-updated.sh
+
+                            echo "📤 Copying updated start script to EC2..."
+                            scp -o StrictHostKeyChecking=no start-gfj-updated.sh ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/start-gfj.sh
+
                             echo "➕ Giving execute permissions to start-gfj.sh..."
                             ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} '
                                 sudo chmod +x ${DEPLOY_PATH}/start-gfj.sh
