@@ -2,8 +2,8 @@ pipeline {
     agent {
         docker {
             image 'maven-terraform-agent:latest'
-            // MODIFIED: Reverting to a simpler mapping and forcing 'root' user to fix the "process never started" issue.
-            // Using `dir('/workspace')` as it's the default behavior for Jenkins workspace.
+            // MODIFIED: Corrected syntax to ensure WORKSPACE variable is interpolated.
+            // Double quotes around the whole string are crucial for Groovy variable expansion.
             args "-u 0 -v /var/run/docker.sock:/var/run/docker.sock -v ${env.WORKSPACE}:/workspace"
         }
     }
@@ -33,7 +33,6 @@ pipeline {
                 echo "🌍 Initializing and planning Terraform..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
                     dir('/workspace') {
-                        // MODIFIED: All commands are now run with `sudo` to ensure permissions are not an issue.
                         sh '''
                             echo "📁 Contents of current directory:"
                             sudo ls -la
@@ -53,7 +52,6 @@ pipeline {
                 echo "🚀 Applying Terraform changes..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
                     dir('/workspace') {
-                        // MODIFIED: Running with `sudo`.
                         sh '''
                             sudo terraform apply -auto-approve ${TF_PLAN_FILE}
                         '''
