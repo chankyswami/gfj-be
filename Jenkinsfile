@@ -2,7 +2,8 @@ pipeline {
     agent {
         docker {
             image 'maven-terraform-agent:latest'
-            args "-v /var/run/docker.sock:/var/run/docker.sock -v ${env.WORKSPACE}:/workspace"
+            // MODIFIED: Added --user $(id -u) to match the host user's UID.
+            args "-v /var/run/docker.sock:/var/run/docker.sock -v ${env.WORKSPACE}:/workspace --user root"
         }
     }
 
