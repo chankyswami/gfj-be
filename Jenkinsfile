@@ -12,6 +12,7 @@ pipeline {
         DEPLOY_PATH         = '/home/ec2-user'
         AWS_REGION          = 'ap-south-1'
         TF_PLAN_FILE        = 'tfplan'
+        SERVICE_NAME        = 'gfj.service'
     }
 
     parameters {
@@ -21,9 +22,7 @@ pipeline {
 
     stages {
         stage('Terraform Destroy') {
-            when {
-                expression { return params.DESTROY_TF == true }
-            }
+            when { expression { return params.DESTROY_TF == true } }
             steps {
                 echo "💣 Destroying infrastructure..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
@@ -37,9 +36,7 @@ pipeline {
         }
 
         stage('Terraform Init & Plan') {
-            when {
-                expression { return params.DESTROY_TF == false }
-            }
+            when { expression { return params.DESTROY_TF == false } }
             steps {
                 echo "🌍 Initializing and planning Terraform..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
@@ -53,9 +50,7 @@ pipeline {
         }
 
         stage('Terraform Apply') {
-            when {
-                expression { return params.APPLY_TF == true && params.DESTROY_TF == false }
-            }
+            when { expression { return params.APPLY_TF == true && params.DESTROY_TF == false } }
             steps {
                 echo "🚀 Applying Terraform changes..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
@@ -68,9 +63,7 @@ pipeline {
         }
 
         stage('Build') {
-            when {
-                expression { return params.DESTROY_TF == false }
-            }
+            when { expression { return params.DESTROY_TF == false } }
             steps {
                 sh 'echo "🔧 Checking Maven version..."'
                 sh 'mvn -v'
@@ -90,37 +83,40 @@ pipeline {
         }
 
         stage('Deploy') {
-            when {
-                expression { return params.DESTROY_TF == false }
-            }
+            when { expression { return params.DESTROY_TF == false } }
             steps {
                 echo "🚚 Deploying to EC2 instance..."
-                configFileProvider([configFile(fileId: 'start-gfj-script', variable: 'START_SCRIPT_PATH')]) {
-                    sshagent(credentials: ['ec2-creds']) {
-                        sh """
-                            echo "📤 Copying JAR to EC2..."
-                            scp -o StrictHostKeyChecking=no target/${JAR_NAME} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/
+                sshagent(credentials: ['ec2-creds']) {
+                    sh """
+                        echo "📤 Copying JAR to EC2..."
+                        scp -o StrictHostKeyChecking=no target/${JAR_NAME} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/
 
-                            echo "✏️ Preparing start-gfj.sh with correct JAR name..."
-                            sed "s|gfj-be-0.0.30-SNAPSHOT.jar|${JAR_NAME}|g" ${START_SCRIPT_PATH} > start-gfj-updated.sh
+                        echo "⚙️ Creating/Updating systemd service on EC2..."
+                        ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} '
+                            echo "[Unit]
+                            Description=GFJ Spring Boot App
+                            After=network.target
 
-                            echo "📤 Copying updated start script to EC2..."
-                            scp -o StrictHostKeyChecking=no start-gfj-updated.sh ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/start-gfj.sh
+                            [Service]
+                            User=${EC2_INSTANCE_USER}
+                            ExecStart=/usr/bin/java -jar ${DEPLOY_PATH}/${JAR_NAME}
+                            SuccessExitStatus=143
+                            Restart=on-failure
+                            RestartSec=10
+                            WorkingDirectory=${DEPLOY_PATH}
 
-                            echo "➕ Giving execute permissions to start-gfj.sh..."
-                            ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} '
-                                sudo chmod +x ${DEPLOY_PATH}/start-gfj.sh
-                            '
+                            [Install]
+                            WantedBy=multi-user.target" | sudo tee /etc/systemd/system/${SERVICE_NAME} > /dev/null
+                        '
 
-                            echo "🔄 Restarting application on EC2..."
-                            ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} '
-                                echo "🛑 Stopping existing app..." &&
-                                sudo pkill -f "${JAR_NAME}" || true &&
-                                echo "▶️ Starting new app..." &&
-                                nohup bash ${DEPLOY_PATH}/start-gfj.sh > app.log 2>&1 &
-                            '
-                        """
-                    }
+                        echo "🔄 Restarting service..."
+                        ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} '
+                            sudo systemctl daemon-reload &&
+                            sudo systemctl enable ${SERVICE_NAME} &&
+                            sudo systemctl restart ${SERVICE_NAME} &&
+                            sudo systemctl status ${SERVICE_NAME} --no-pager -l
+                        '
+                    """
                 }
             }
         }
