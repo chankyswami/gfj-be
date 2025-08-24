@@ -11,32 +11,28 @@ pipeline {
         EC2_INSTANCE_USER   = 'ec2-user'
         DEPLOY_PATH         = '/home/ec2-user'
         AWS_REGION          = 'ap-south-1'
+        TF_PLAN_FILE        = 'tfplan'
+    }
+
+    parameters {
+        booleanParam(name: 'APPLY_TF', defaultValue: false, description: 'Apply Terraform changes?')
     }
 
     stages {
         stage('Checkout') {
             steps {
+                echo "📦 Checking out source code..."
                 checkout scm
             }
         }
 
         stage('Terraform Init & Plan') {
             steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'GEMS-AWS',
-                        usernameVariable: 'AWS_ACCESS_KEY_ID',
-                        passwordVariable: 'AWS_SECRET_ACCESS_KEY'
-                    )
-                ]) {
+                echo "🌍 Initializing and planning Terraform..."
+                withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
                     sh '''
-                        echo "🌍 Initializing Terraform..."
-                        export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-                        export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
-                        export AWS_DEFAULT_REGION=ap-south-1
-
-                        terraform init
-                        terraform plan -out=tfplan
+                        terraform init -input=false
+                        terraform plan -out=${TF_PLAN_FILE}
                     '''
                 }
             }
@@ -47,20 +43,10 @@ pipeline {
                 expression { return params.APPLY_TF == true }
             }
             steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'GEMS-AWS',
-                        usernameVariable: 'AWS_ACCESS_KEY_ID',
-                        passwordVariable: 'AWS_SECRET_ACCESS_KEY'
-                    )
-                ]) {
+                echo "🚀 Applying Terraform changes..."
+                withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
                     sh '''
-                        echo "🚀 Applying Terraform changes..."
-                        export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-                        export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
-                        export AWS_DEFAULT_REGION=ap-south-1
-
-                        terraform apply -auto-approve tfplan
+                        terraform apply -auto-approve ${TF_PLAN_FILE}
                     '''
                 }
             }
@@ -87,22 +73,20 @@ pipeline {
 
         stage('Deploy') {
             steps {
+                echo "🚚 Deploying to EC2 instance..."
                 configFileProvider([configFile(fileId: 'start-gfj-script', variable: 'START_SCRIPT_PATH')]) {
                     sshagent(credentials: ['ec2-creds']) {
                         sh """
-                            echo "🚀 Copying application files to EC2 instance..."
-
+                            echo "📤 Copying JAR and start script to EC2..."
                             scp -o StrictHostKeyChecking=no target/${JAR_NAME} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/
-
                             scp -o StrictHostKeyChecking=no ${START_SCRIPT_PATH} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/start-gfj.sh
 
-                            echo "🔄 Connecting to EC2 instance and restarting application..."
-
+                            echo "🔄 Restarting application on EC2..."
                             ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} '
-                                echo "🛑 Stopping any existing application process..." &&
+                                echo "🛑 Stopping existing app..." &&
                                 sudo pkill -f "${JAR_NAME}" || true &&
                                 sudo chmod +x ${DEPLOY_PATH}/start-gfj.sh &&
-                                echo "▶️ Starting the new application using the start script as root..." &&
+                                echo "▶️ Starting new app..." &&
                                 sudo nohup bash ${DEPLOY_PATH}/start-gfj.sh > /var/log/gfj.log 2>&1 &
                             '
                         """
