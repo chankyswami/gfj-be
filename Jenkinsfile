@@ -2,9 +2,8 @@ pipeline {
     agent {
         docker {
             image 'maven-terraform-agent:latest'
-            // MODIFIED: Corrected syntax to ensure WORKSPACE variable is interpolated.
-            // Double quotes around the whole string are crucial for Groovy variable expansion.
-            args "-u 0 -v /var/run/docker.sock:/var/run/docker.sock -v ${env.WORKSPACE}:/workspace"
+            // MODIFIED: Ensure double quotes are used for variable interpolation
+            args "-u 0 -v /var/run/docker.sock:/var/run/docker.sock -v \"${env.WORKSPACE}\":/workspace"
         }
     }
 
@@ -35,9 +34,9 @@ pipeline {
                     dir('/workspace') {
                         sh '''
                             echo "📁 Contents of current directory:"
-                            sudo ls -la
-                            sudo terraform init -input=false
-                            sudo terraform plan -out=${TF_PLAN_FILE}
+                            ls -la
+                            terraform init -input=false
+                            terraform plan -out=${TF_PLAN_FILE}
                         '''
                     }
                 }
@@ -53,7 +52,7 @@ pipeline {
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
                     dir('/workspace') {
                         sh '''
-                            sudo terraform apply -auto-approve ${TF_PLAN_FILE}
+                            terraform apply -auto-approve ${TF_PLAN_FILE}
                         '''
                     }
                 }
