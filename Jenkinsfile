@@ -23,18 +23,16 @@ pipeline {
             steps {
                 echo "🌍 Initializing and planning Terraform..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
+                    // Correctly using the `withAWS` step to inject credentials.
+                    // The `sh` step's environment will automatically inherit these credentials.
                     sh '''
                         echo "📁 Contents of current directory:"
                         ls -la
+                        
                         # Navigate to the directory containing Terraform files
-                        cd terraform-gem
+                        cd terraform-gem/environments/dev
                         echo "📁 Contents of terraform-gem directory:"
                         ls -la
-
-                        # Expose AWS credentials as environment variables for Terraform
-                        export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
-                        export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
-                        export AWS_SESSION_TOKEN="${AWS_SESSION_TOKEN}"
 
                         terraform init -input=false
                         terraform plan -out=${TF_PLAN_FILE}
@@ -50,15 +48,11 @@ pipeline {
             steps {
                 echo "🚀 Applying Terraform changes..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
+                    // Correctly using the `withAWS` step to inject credentials.
                     sh '''
                         # Navigate to the directory containing Terraform files
-                        cd terraform-gem
+                        cd terraform-gem/environments/dev
                         
-                        # Expose AWS credentials as environment variables for Terraform
-                        export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
-                        export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
-                        export AWS_SESSION_TOKEN="${AWS_SESSION_TOKEN}"
-
                         terraform apply -auto-approve ${TF_PLAN_FILE}
                     '''
                 }
