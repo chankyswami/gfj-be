@@ -22,18 +22,14 @@ pipeline {
         stage('Terraform Init & Plan') {
             steps {
                 echo "🌍 Initializing and planning Terraform..."
-                withCredentials([
-                    // Use withCredentials to define secure variables
-                    string(credentialsId: 'GEMS-AWS-ACCESS-KEY', variable: 'AWS_ACCESS_KEY_ID'),
-                    string(credentialsId: 'GEMS-AWS-SECRET-KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                ]) {
+                withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
                     sh '''
                         echo "📁 Contents of current directory:"
                         ls -la
                         
                         # Navigate to the directory containing Terraform files
                         cd terraform-gem/environments/dev
-                        echo "📁 Contents of terraform-gem/environments/dev directory:"
+                        echo "📁 Contents of terraform-gem directory:"
                         ls -la
 
                         terraform init -input=false
@@ -49,11 +45,7 @@ pipeline {
             }
             steps {
                 echo "🚀 Applying Terraform changes..."
-                withCredentials([
-                    // Use withCredentials to define secure variables
-                    string(credentialsId: 'GEMS-AWS-ACCESS-KEY', variable: 'AWS_ACCESS_KEY_ID'),
-                    string(credentialsId: 'GEMS-AWS-SECRET-KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                ]) {
+                withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
                     sh '''
                         # Navigate to the directory containing Terraform files
                         cd terraform-gem/environments/dev
