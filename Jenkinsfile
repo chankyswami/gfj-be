@@ -13,6 +13,7 @@ pipeline {
         AWS_REGION          = 'ap-south-1'
         TF_PLAN_FILE        = 'tfplan'
         SERVICE_NAME        = 'gfj.service'
+        START_SCRIPT        = '/home/ec2-user/start.gfj.sh'
     }
 
     parameters {
@@ -88,8 +89,9 @@ pipeline {
                 echo "🚚 Deploying to EC2 instance..."
                 sshagent(credentials: ['ec2-creds']) {
                     sh """
-                        echo "📤 Copying JAR to EC2..."
+                        echo "📤 Copying JAR and script to EC2..."
                         scp -o StrictHostKeyChecking=no target/${JAR_NAME} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/
+                        scp -o StrictHostKeyChecking=no start.gfj.sh ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/
 
                         echo "⚙️ Creating/Updating systemd service on EC2..."
                         ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} '
@@ -99,11 +101,12 @@ pipeline {
 
                             [Service]
                             User=${EC2_INSTANCE_USER}
-                            ExecStart=/usr/bin/java -jar ${DEPLOY_PATH}/${JAR_NAME}
-                            SuccessExitStatus=143
+                            ExecStart=/bin/bash ${START_SCRIPT}
                             Restart=on-failure
                             RestartSec=10
                             WorkingDirectory=${DEPLOY_PATH}
+                            StandardOutput=journal
+                            StandardError=journal
 
                             [Install]
                             WantedBy=multi-user.target" | sudo tee /etc/systemd/system/${SERVICE_NAME} > /dev/null
@@ -111,6 +114,7 @@ pipeline {
 
                         echo "🔄 Restarting service..."
                         ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} '
+                            chmod +x ${START_SCRIPT} &&
                             sudo systemctl daemon-reload &&
                             sudo systemctl enable ${SERVICE_NAME} &&
                             sudo systemctl restart ${SERVICE_NAME} &&
