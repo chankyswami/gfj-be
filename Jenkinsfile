@@ -2,8 +2,8 @@ pipeline {
     agent {
         docker {
             image 'maven-terraform-agent:latest'
-            // MODIFIED: Ensure double quotes are used for variable interpolation
-            args "-u 0 -v /var/run/docker.sock:/var/run/docker.sock -v \"${env.WORKSPACE}\":/workspace"
+            // No need for explicit volume mapping args if the container handles SCM checkout
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
 
@@ -20,25 +20,18 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                echo "📦 Checking out source code..."
-                checkout scm
-            }
-        }
-
+        // The Checkout stage is now part of the agent's work and no longer needs an explicit stage.
+        // It will be handled automatically by the Docker agent configuration.
         stage('Terraform Init & Plan') {
             steps {
                 echo "🌍 Initializing and planning Terraform..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
-                    dir('/workspace') {
-                        sh '''
-                            echo "📁 Contents of current directory:"
-                            ls -la
-                            terraform init -input=false
-                            terraform plan -out=${TF_PLAN_FILE}
-                        '''
-                    }
+                    sh '''
+                        echo "📁 Contents of current directory:"
+                        ls -la
+                        terraform init -input=false
+                        terraform plan -out=${TF_PLAN_FILE}
+                    '''
                 }
             }
         }
@@ -50,11 +43,9 @@ pipeline {
             steps {
                 echo "🚀 Applying Terraform changes..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
-                    dir('/workspace') {
-                        sh '''
-                            terraform apply -auto-approve ${TF_PLAN_FILE}
-                        '''
-                    }
+                    sh '''
+                        terraform apply -auto-approve ${TF_PLAN_FILE}
+                    '''
                 }
             }
         }
