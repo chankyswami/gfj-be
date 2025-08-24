@@ -2,7 +2,7 @@ pipeline {
     agent {
         docker {
             image 'maven-terraform-agent:latest'
-            args "-v /var/run/docker.sock:/var/run/docker.sock -v ${env.WORKSPACE}:/workspace"
+            args "-v /var/run/docker.sock:/var/run/docker.sock -v ${pwd()}:/workspace"
         }
     }
 
@@ -32,6 +32,8 @@ pipeline {
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
                     sh '''
                         cd /workspace
+                        echo "📁 Contents of /workspace:"
+                        ls -la
                         terraform init -input=false
                         terraform plan -out=${TF_PLAN_FILE}
                     '''
