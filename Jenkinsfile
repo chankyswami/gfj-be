@@ -2,7 +2,6 @@ pipeline {
     agent {
         docker {
             image 'maven-terraform-agent:latest'
-            // No need for explicit volume mapping args if the container handles SCM checkout
             args '-v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
@@ -20,14 +19,16 @@ pipeline {
     }
 
     stages {
-        // The Checkout stage is now part of the agent's work and no longer needs an explicit stage.
-        // It will be handled automatically by the Docker agent configuration.
         stage('Terraform Init & Plan') {
             steps {
                 echo "🌍 Initializing and planning Terraform..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
                     sh '''
                         echo "📁 Contents of current directory:"
+                        ls -la
+                        # Navigate to the directory containing Terraform files
+                        cd terraform-gem
+                        echo "📁 Contents of terraform-gem directory:"
                         ls -la
                         terraform init -input=false
                         terraform plan -out=${TF_PLAN_FILE}
@@ -44,6 +45,8 @@ pipeline {
                 echo "🚀 Applying Terraform changes..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
                     sh '''
+                        # Navigate to the directory containing Terraform files
+                        cd terraform-gem
                         terraform apply -auto-approve ${TF_PLAN_FILE}
                     '''
                 }
