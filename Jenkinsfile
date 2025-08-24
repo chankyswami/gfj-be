@@ -22,16 +22,20 @@ pipeline {
         stage('Terraform Init & Plan') {
             steps {
                 echo "🌍 Initializing and planning Terraform..."
-                withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
-                    // Correctly using the `withAWS` step to inject credentials.
-                    // The `sh` step's environment will automatically inherit these credentials.
+                // Use `withCredentials` to securely inject credentials as environment variables
+                withCredentials([
+                    aws(credentialsId: 'GEMS-AWS',
+                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY',
+                        sessionTokenVariable: 'AWS_SESSION_TOKEN')
+                ]) {
                     sh '''
                         echo "📁 Contents of current directory:"
                         ls -la
                         
-                        # Navigate to the directory containing Terraform files
+                        # Navigate to the correct directory for Terraform
                         cd terraform-gem/environments/dev
-                        echo "📁 Contents of terraform-gem directory:"
+                        echo "📁 Contents of terraform-gem/environments/dev directory:"
                         ls -la
 
                         terraform init -input=false
@@ -47,8 +51,12 @@ pipeline {
             }
             steps {
                 echo "🚀 Applying Terraform changes..."
-                withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
-                    // Correctly using the `withAWS` step to inject credentials.
+                withCredentials([
+                    aws(credentialsId: 'GEMS-AWS',
+                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY',
+                        sessionTokenVariable: 'AWS_SESSION_TOKEN')
+                ]) {
                     sh '''
                         # Navigate to the directory containing Terraform files
                         cd terraform-gem/environments/dev
