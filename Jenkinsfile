@@ -7,7 +7,7 @@ pipeline {
     }
 
     environment {
-        EC2_INSTANCE_IP     = '13.202.224.13'
+        EC2_INSTANCE_IP     = '13.203.132.105'
         EC2_INSTANCE_USER   = 'ec2-user'
         DEPLOY_PATH         = '/home/ec2-user'
         AWS_REGION          = 'ap-south-1'
@@ -101,12 +101,16 @@ pipeline {
                             echo "📤 Copying JAR and start script to EC2..."
                             scp -o StrictHostKeyChecking=no target/${JAR_NAME} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/
                             scp -o StrictHostKeyChecking=no ${START_SCRIPT_PATH} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/start-gfj.sh
+                            
+                            echo "➕ Giving execute permissions to start-gfj.sh..."
+                            ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} '
+                                sudo chmod +x ${DEPLOY_PATH}/start-gfj.sh
+                            '
 
                             echo "🔄 Restarting application on EC2..."
                             ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} '
                                 echo "🛑 Stopping existing app..." &&
                                 sudo pkill -f "${JAR_NAME}" || true &&
-                                sudo chmod +x ${DEPLOY_PATH}/start-gfj.sh &&
                                 echo "▶️ Starting new app..." &&
                                 sudo nohup bash ${DEPLOY_PATH}/start-gfj.sh > /var/log/gfj.log 2>&1 &
                             '
