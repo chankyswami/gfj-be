@@ -2,9 +2,9 @@ pipeline {
     agent {
         docker {
             image 'maven-terraform-agent:latest'
-            // MODIFIED: Removed 'workingDirectory' and adjusted 'args' to map to a standard workspace path.
-            // Using a non-root user (e.g., 1000) for better security and to avoid permission issues.
-            args "-u 1000 -v /var/run/docker.sock:/var/run/docker.sock -v ${env.WORKSPACE}:/home/jenkins/workspace"
+            // MODIFIED: Reverting to a simpler mapping and forcing 'root' user to fix the "process never started" issue.
+            // Using `dir('/workspace')` as it's the default behavior for Jenkins workspace.
+            args "-u 0 -v /var/run/docker.sock:/var/run/docker.sock -v ${env.WORKSPACE}:/workspace"
         }
     }
 
@@ -32,13 +32,13 @@ pipeline {
             steps {
                 echo "🌍 Initializing and planning Terraform..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
-                    // Correctly using 'dir' to set the working directory within the stage.
-                    dir('/home/jenkins/workspace') {
+                    dir('/workspace') {
+                        // MODIFIED: All commands are now run with `sudo` to ensure permissions are not an issue.
                         sh '''
                             echo "📁 Contents of current directory:"
-                            ls -la
-                            terraform init -input=false
-                            terraform plan -out=${TF_PLAN_FILE}
+                            sudo ls -la
+                            sudo terraform init -input=false
+                            sudo terraform plan -out=${TF_PLAN_FILE}
                         '''
                     }
                 }
@@ -52,9 +52,10 @@ pipeline {
             steps {
                 echo "🚀 Applying Terraform changes..."
                 withAWS(credentials: 'GEMS-AWS', region: "${env.AWS_REGION}") {
-                    dir('/home/jenkins/workspace') {
+                    dir('/workspace') {
+                        // MODIFIED: Running with `sudo`.
                         sh '''
-                            terraform apply -auto-approve ${TF_PLAN_FILE}
+                            sudo terraform apply -auto-approve ${TF_PLAN_FILE}
                         '''
                     }
                 }
