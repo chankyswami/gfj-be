@@ -2,7 +2,7 @@ pipeline {
     agent {
         docker {
             image 'maven-terraform-agent:latest'
-            args "-v /var/run/docker.sock:/var/run/docker.sock -v /home/jenkins/agent:/workspace""
+            args "-v /var/run/docker.sock:/var/run/docker.sock -v /home/jenkins/agent:/workspace"
         }
     }
 
