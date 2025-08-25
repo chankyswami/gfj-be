@@ -80,7 +80,8 @@ public class ShippingServiceImpl implements ShippingService {
                         item.put("quotations", entry.getValue());
                         item.put("count", entry.getValue().size());
                         item.put("status", shippingStatusById.get(entry.getKey()));
-                        item.put("trackingId", shippingTrackingIdById.get(entry.getKey())); // can be null
+                        item.put("trackingId", shippingTrackingIdById.get(entry.getKey()));
+                        item.put("clientDetails", clientRepository.findById(entry.getValue().getFirst().getClientId()));
                         return item;
                     })
                     .collect(Collectors.toList());
