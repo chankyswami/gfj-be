@@ -92,9 +92,19 @@ pipeline {
                         echo "📤 Copying JAR to EC2..."
                         scp -o StrictHostKeyChecking=no target/${JAR_NAME} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/
 
-                        echo "🧩 Updating start.gfj.sh with new JAR name..."
+                        echo "🧩 Updating start.gfj.sh with new JAR name and fixing log/pid paths..."
                         ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} '
+                            mkdir -p /home/ec2-user/logs /home/ec2-user/run
+
+                            # Replace jar path
                             sed -i "s|java -jar .*\\.jar|java -jar ${DEPLOY_PATH}/${JAR_NAME}|g" ${START_SCRIPT}
+
+                            # Fix log file path
+                            sed -i "s|/var/log/gfj-app.log|/home/ec2-user/logs/gfj-app.log|g" ${START_SCRIPT}
+
+                            # Fix pid file path
+                            sed -i "s|/var/run/gfj-app.pid|/home/ec2-user/run/gfj-app.pid|g" ${START_SCRIPT}
+
                             echo "✅ Updated start.gfj.sh:"
                             grep "java -jar" ${START_SCRIPT}
                         '
