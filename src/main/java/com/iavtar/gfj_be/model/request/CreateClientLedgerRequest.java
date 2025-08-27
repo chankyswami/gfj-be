@@ -1,6 +1,6 @@
 package com.iavtar.gfj_be.model.request;
 
-import com.iavtar.gfj_be.entity.ClientLedger;
+import com.iavtar.gfj_be.entity.enums.TransactionType;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.Getter;
@@ -20,7 +20,7 @@ public class CreateClientLedgerRequest {
     private BigDecimal amount;
 
     @NotNull(message = "Transaction type cannot be null")
-    private ClientLedger.TransactionType transactionType;
+    private TransactionType transactionType;
 
     @NotNull(message = "Description cannot be null")
     private String description;

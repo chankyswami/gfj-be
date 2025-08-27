@@ -1,6 +1,7 @@
 package com.iavtar.gfj_be.model.response;
 
 import com.iavtar.gfj_be.entity.ClientLedger;
+import com.iavtar.gfj_be.entity.enums.TransactionType;
 import lombok.Builder;
 import lombok.Data;
 
@@ -15,9 +16,8 @@ public class ClientLedgerResponse {
     private Long clientId;
     private String transactionId;
     private BigDecimal amount;
-    private ClientLedger.TransactionType transactionType;
+    private TransactionType transactionType;
     private String description;
-    private String reference;
     private String note;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -30,7 +30,6 @@ public class ClientLedgerResponse {
                 .amount(ledger.getAmount())
                 .transactionType(ledger.getTransactionType())
                 .description(ledger.getDescription())
-                .reference(ledger.getReference())
                 .note(ledger.getNote())
                 .createdAt(ledger.getCreatedAt())
                 .updatedAt(ledger.getUpdatedAt())

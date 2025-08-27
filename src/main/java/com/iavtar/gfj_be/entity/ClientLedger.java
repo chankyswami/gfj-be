@@ -1,5 +1,6 @@
 package com.iavtar.gfj_be.entity;
 
+import com.iavtar.gfj_be.entity.enums.TransactionType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -40,9 +41,6 @@ public class ClientLedger {
     private String description;
 
     @Column
-    private String reference;
-
-    @Column
     private String note;
 
     @CreationTimestamp
@@ -51,7 +49,4 @@ public class ClientLedger {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    public enum TransactionType {
-        CREDIT, DEBIT
-    }
 }

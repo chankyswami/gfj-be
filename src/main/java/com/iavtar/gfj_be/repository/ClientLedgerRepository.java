@@ -1,6 +1,7 @@
 package com.iavtar.gfj_be.repository;
 
 import com.iavtar.gfj_be.entity.ClientLedger;
+import com.iavtar.gfj_be.entity.enums.TransactionType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,9 +22,9 @@ public interface ClientLedgerRepository extends JpaRepository<ClientLedger, Long
     
     List<ClientLedger> findByClientIdOrderByCreatedAtDesc(Long clientId);
     
-    @Query("SELECT COALESCE(SUM(CASE WHEN cl.transactionType = 'CREDIT' THEN cl.amount ELSE -cl.amount END), 0) " +
+    @Query("SELECT COALESCE(SUM(CASE WHEN cl.transactionType = :creditType THEN cl.amount ELSE -cl.amount END), 0) " +
            "FROM ClientLedger cl WHERE cl.clientId = :clientId")
-    BigDecimal getClientBalance(@Param("clientId") Long clientId);
+    BigDecimal getClientBalance(@Param("clientId") Long clientId, @Param("creditType") TransactionType creditType);
     
     @Query("SELECT COUNT(cl) FROM ClientLedger cl WHERE cl.clientId = :clientId")
     Long getTransactionCount(@Param("clientId") Long clientId);
