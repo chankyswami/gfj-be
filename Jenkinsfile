@@ -63,13 +63,13 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Build Backend') {
             when { expression { return params.DESTROY_TF == false } }
             steps {
                 sh 'echo "🔧 Checking Maven version..."'
                 sh 'mvn -v'
 
-                sh 'echo "🛠️ Building the project..."'
+                sh 'echo "🛠️ Building the Spring Boot project..."'
                 sh 'mvn clean package -DskipTests=true || exit 1'
 
                 sh 'echo "📦 Listing JARs in target directory..."'
@@ -83,39 +83,56 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+        stage('Build Frontend') {
             when { expression { return params.DESTROY_TF == false } }
             steps {
-                echo "🚚 Deploying to EC2 instance..."
+                dir('gfj-ui') {
+                    sh '''
+                        echo "🌐 Building React frontend..."
+                        npm install
+                        npm run build
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Backend') {
+            when { expression { return params.DESTROY_TF == false } }
+            steps {
+                echo "🚚 Deploying Spring Boot backend..."
                 sshagent(credentials: ['ec2-creds']) {
                     sh """
-                        echo "📤 Copying JAR to EC2..."
                         scp -o StrictHostKeyChecking=no target/${JAR_NAME} ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:${DEPLOY_PATH}/
 
-                        echo "🧩 Updating start.gfj.sh with new JAR name and fixing log/pid paths..."
                         ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} '
-                            mkdir -p /home/ec2-user/logs /home/ec2-user/run
-
-                            # Replace jar path
                             sed -i "s|java -jar .*\\.jar|java -jar ${DEPLOY_PATH}/${JAR_NAME}|g" ${START_SCRIPT}
-
-                            # Fix log file path
-                            sed -i "s|/var/log/gfj-app.log|/home/ec2-user/logs/gfj-app.log|g" ${START_SCRIPT}
-
-                            # Fix pid file path
-                            sed -i "s|/var/run/gfj-app.pid|/home/ec2-user/run/gfj-app.pid|g" ${START_SCRIPT}
-
                             echo "✅ Updated start.gfj.sh:"
                             grep "java -jar" ${START_SCRIPT}
-                        '
 
-                        echo "🔄 Restarting systemd service..."
-                        ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} '
                             chmod +x ${START_SCRIPT} &&
                             sudo systemctl daemon-reload &&
                             sudo systemctl enable ${SERVICE_NAME} &&
                             sudo systemctl restart ${SERVICE_NAME} &&
                             sudo systemctl status ${SERVICE_NAME} --no-pager -l
+                        '
+                    """
+                }
+            }
+        }
+
+        stage('Deploy Frontend') {
+            when { expression { return params.DESTROY_TF == false } }
+            steps {
+                echo "🚚 Deploying React frontend..."
+                sshagent(credentials: ['ec2-creds']) {
+                    sh """
+                        scp -o StrictHostKeyChecking=no -r gfj-ui/build/* ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP}:/tmp/gfj-ui-build/
+
+                        ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE_USER}@${EC2_INSTANCE_IP} '
+                            sudo rm -rf /var/www/html/*
+                            sudo cp -r /tmp/gfj-ui-build/* /usr/share/nginx/html/
+                            sudo systemctl restart nginx
+                            echo "✅ Frontend deployed to /usr/share/nginx/html"
                         '
                     """
                 }
