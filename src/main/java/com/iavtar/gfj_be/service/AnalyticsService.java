@@ -2,9 +2,10 @@ package com.iavtar.gfj_be.service;
 
 import com.iavtar.gfj_be.entity.AppUser;
 import com.iavtar.gfj_be.entity.Client;
-import com.iavtar.gfj_be.entity.LedgerTransaction;
+import com.iavtar.gfj_be.entity.ClientLedger;
 import com.iavtar.gfj_be.entity.Quotation;
 import com.iavtar.gfj_be.entity.enums.RoleType;
+import com.iavtar.gfj_be.entity.enums.TransactionType;
 import com.iavtar.gfj_be.repository.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -30,7 +32,7 @@ public class AnalyticsService {
     private QuotationRepository quotationRepository;
 
     @Autowired
-    private LedgerRespository ledgerRepository;
+    private ClientLedgerRepository clientLedgerRepository;
 
     @Autowired
     private MaterialRepository materialRepository;
@@ -46,17 +48,17 @@ public class AnalyticsService {
                 .count();
         long totalClients = clientRepository.count();
         long totalQuotations = quotationRepository.count();
-        long totalTransactions = ledgerRepository.count();
+        long totalTransactions = clientLedgerRepository.count();
         
         analytics.put("totalAgents", totalAgents);
         analytics.put("totalClients", totalClients);
         analytics.put("totalQuotations", totalQuotations);
         analytics.put("totalTransactions", totalTransactions);
         
-        // Financial summary
-        BigDecimal totalRevenue = ledgerRepository.findAll().stream()
-                .filter(tx -> "PAID".equals(tx.getPaymentStatus()))
-                .map(LedgerTransaction::getAmount)
+        // Financial summary - Updated to use ClientLedger
+        BigDecimal totalRevenue = clientLedgerRepository.findAll().stream()
+                .filter(tx -> TransactionType.CREDIT.equals(tx.getTransactionType()))
+                .map(ClientLedger::getAmount)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         
@@ -116,47 +118,42 @@ public class AnalyticsService {
         log.info("Getting financial analytics for period: {}", period);
         Map<String, Object> analytics = new HashMap<>();
         
-        List<LedgerTransaction> transactions = ledgerRepository.findAll();
+        List<ClientLedger> transactions = clientLedgerRepository.findAll();
         
-        // Payment method distribution
-        Map<String, Long> paymentMethodDistribution = transactions.stream()
-                .collect(Collectors.groupingBy(
-                        tx -> tx.getPaymentMethod() != null ? tx.getPaymentMethod() : "UNKNOWN",
-                        Collectors.counting()
-                ));
+        // Payment method distribution - Note: ClientLedger doesn't have paymentMethod, so we'll skip this
+        // Map<String, Long> paymentMethodDistribution = transactions.stream()
+        //         .collect(Collectors.groupingBy(
+        //                 tx -> tx.getPaymentMethod() != null ? tx.getPaymentMethod() : "UNKNOWN",
+        //                 Collectors.counting()
+        //         ));
         
-        // Transaction type distribution
+        // Transaction type distribution - Updated to use enum
         Map<String, Long> transactionTypeDistribution = transactions.stream()
                 .collect(Collectors.groupingBy(
-                        tx -> tx.getTransactionType() != null ? tx.getTransactionType() : "UNKNOWN",
+                        tx -> tx.getTransactionType() != null ? tx.getTransactionType().name() : "UNKNOWN",
                         Collectors.counting()
                 ));
         
-        // Payment status distribution
-        Map<String, Long> paymentStatusDistribution = transactions.stream()
-                .collect(Collectors.groupingBy(
-                        tx -> tx.getPaymentStatus() != null ? tx.getPaymentStatus() : "UNKNOWN",
-                        Collectors.counting()
-                ));
+        // Payment status distribution - Note: ClientLedger doesn't have paymentStatus, so we'll skip this
+        // Map<String, Long> paymentStatusDistribution = transactions.stream()
+        //         .collect(Collectors.groupingBy(
+        //                 tx -> tx.getPaymentStatus() != null ? tx.getPaymentStatus() : "UNKNOWN",
+        //                 Collectors.counting()
+        //         ));
         
-        // Revenue by month
+        // Revenue by month - Updated to use ClientLedger and LocalDateTime
         LocalDateTime twelveMonthsAgo = LocalDateTime.now().minusMonths(12);
         Map<String, BigDecimal> monthlyRevenue = transactions.stream()
-                .filter(tx -> tx.getCreatedAt() != null && 
-                        tx.getCreatedAt().toInstant().isAfter(twelveMonthsAgo.toInstant(java.time.ZoneOffset.UTC)))
-                .filter(tx -> "PAID".equals(tx.getPaymentStatus()))
+                .filter(tx -> tx.getCreatedAt() != null && tx.getCreatedAt().isAfter(twelveMonthsAgo))
+                .filter(tx -> TransactionType.CREDIT.equals(tx.getTransactionType()))
                 .collect(Collectors.groupingBy(
-                        tx -> {
-                            Calendar cal = Calendar.getInstance();
-                            cal.setTime(tx.getCreatedAt());
-                            return String.format("%d-%02d", cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1);
-                        },
-                        Collectors.reducing(BigDecimal.ZERO, LedgerTransaction::getAmount, BigDecimal::add)
+                        tx -> tx.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM")),
+                        Collectors.reducing(BigDecimal.ZERO, ClientLedger::getAmount, BigDecimal::add)
                 ));
         
-        analytics.put("paymentMethodDistribution", paymentMethodDistribution);
+        // analytics.put("paymentMethodDistribution", paymentMethodDistribution);
         analytics.put("transactionTypeDistribution", transactionTypeDistribution);
-        analytics.put("paymentStatusDistribution", paymentStatusDistribution);
+        // analytics.put("paymentStatusDistribution", paymentStatusDistribution);
         analytics.put("monthlyRevenue", monthlyRevenue);
         
         return analytics;
@@ -277,18 +274,13 @@ public class AnalyticsService {
                         Collectors.counting()
                 ));
         
-        // Revenue trends
-        Map<String, BigDecimal> revenueTrends = ledgerRepository.findAll().stream()
-                .filter(tx -> tx.getCreatedAt() != null && 
-                        tx.getCreatedAt().toInstant().isAfter(startDate.toInstant(java.time.ZoneOffset.UTC)))
-                .filter(tx -> "PAID".equals(tx.getPaymentStatus()))
+        // Revenue trends - Updated to use ClientLedger and LocalDateTime
+        Map<String, BigDecimal> revenueTrends = clientLedgerRepository.findAll().stream()
+                .filter(tx -> tx.getCreatedAt() != null && tx.getCreatedAt().isAfter(startDate))
+                .filter(tx -> TransactionType.CREDIT.equals(tx.getTransactionType()))
                 .collect(Collectors.groupingBy(
-                        tx -> {
-                            Calendar cal = Calendar.getInstance();
-                            cal.setTime(tx.getCreatedAt());
-                            return String.format("%d-%02d", cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1);
-                        },
-                        Collectors.reducing(BigDecimal.ZERO, LedgerTransaction::getAmount, BigDecimal::add)
+                        tx -> tx.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM")),
+                        Collectors.reducing(BigDecimal.ZERO, ClientLedger::getAmount, BigDecimal::add)
                 ));
         
         // Client acquisition trends
@@ -318,9 +310,10 @@ public class AnalyticsService {
                         .anyMatch(role -> role.getName() == RoleType.AGENT))
                 .count();
         
-        BigDecimal totalRevenue = ledgerRepository.findAll().stream()
-                .filter(tx -> "PAID".equals(tx.getPaymentStatus()))
-                .map(LedgerTransaction::getAmount)
+        // Updated to use ClientLedger and TransactionType enum
+        BigDecimal totalRevenue = clientLedgerRepository.findAll().stream()
+                .filter(tx -> TransactionType.CREDIT.equals(tx.getTransactionType()))
+                .map(ClientLedger::getAmount)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         
